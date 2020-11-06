@@ -1,0 +1,91 @@
+---
+- name: Test random filter
+  hosts: all
+  become: yes
+  gather_facts: False
+  vars:
+  tasks:
+    - apt: "name={{ item }} state=present"
+      with_items:
+        - git
+        - wget
+        - curl
+        - unzip
+        - openssl
+        - systemd
+
+    - name: Download jdk 8
+      get_url:
+        url: https://github.com/frekele/oracle-java/releases/download/8u201-b09/jdk-8u201-linux-x64.tar.gz
+        dest: /home/vagrant/
+
+    - name: Install jdk8
+      shell: |
+        sudo mkdir /usr/lib/jvm
+        cd /usr/lib/jvm
+        sudo tar -xvzf /home/vagrant/jdk-8u201-linux-x64.tar.gz
+      become: true
+
+    - name: Copy plugin list to Jenkins home
+      copy:
+        src: "environment"
+        dest: "/etc/"
+      become: true
+
+    - name: alternatives link for "java"
+      alternatives:
+        name: java
+        link: /usr/bin/java
+        path: "/usr/lib/jvm/jdk1.8.0_201/bin/java"
+      become: true
+
+    - name: alternatives link for "javac"
+      alternatives:
+        name: javac
+        link: /usr/bin/javac
+        path: "/usr/lib/jvm/jdk1.8.0_201/bin/javac"
+      become: true
+
+    - name: alternatives link for "jar"
+      alternatives:
+        name: jar
+        link: /usr/bin/jar
+        path: "/usr/lib/jvm/jdk1.8.0_201/bin/jar"
+      become: true
+
+    - name: Download jira
+      get_url:
+        url: https://product-downloads.atlassian.com/software/jira/downloads/atlassian-jira-software-8.5.6.tar.gz
+        dest: /home/vagrant
+
+    - name: Install Jira
+      shell: |
+        mkdir /home/vagrant/jirasoftware
+        tar -xzf atlassian-jira-software-8.5.6.tar.gz -C /home/vagrant/jirasoftware
+        cd /home/vagrant/jirasoftware
+        chown -R vagrant /home/vagrant/jirasoftware
+        chmod -R u=rwx,go-rwx /home/vagrant/jirasoftware
+        mkdir /home/vagrant/jirasoftware-home
+        chown -R vagrant /home/vagrant/jirasoftware-home
+        chmod -R u=rwx,go-rwx /home/vagrant/jirasoftware-home
+      args:
+        creates: "/home/vagrant/jirasoftware/atlassian-jira-software-8.5.6-standalone/bin/start-jira.sh"
+      become: true
+
+    - name: Copy jira home to jira
+      copy:
+        src: "jira-application.properties"
+        dest: "/home/vagrant/jirasoftware/atlassian-jira-software-8.5.6-standalone/atlassian-jira/WEB-INF/classes"
+      become: true
+
+    - name: Copy jira service
+      copy:
+        src: "jira.service"
+        dest: "/etc/systemd/system/"
+      become: true
+
+    - name: Start Jira
+      shell: |
+        sudo systemctl enable jira
+        sudo systemctl start jira
+      become: true
