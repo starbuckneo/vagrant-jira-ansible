@@ -5,8 +5,8 @@ After=syslog.target network.target
 [Service]
 Type=forking
 User=vagrant
-ExecStart=/home/vagrant/jirasoftware/atlassian-jira-software-8.5.6-standalone/bin/start-jira.sh
-ExecStop=/home/vagrant/jirasoftware/atlassian-jira-software-8.5.6-standalone/bin/stop-jira.sh
+ExecStart=/home/vagrant/jirasoftware/atlassian-jira-software-8.13.0-standalone/bin/start-jira.sh
+ExecStop=/home/vagrant/jirasoftware/atlassian-jira-software-8.13.0-standalone/bin/stop-jira.sh
 SuccessExitStatus=143
 
 [Install]

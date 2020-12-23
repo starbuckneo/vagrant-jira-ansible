@@ -14,6 +14,7 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   config.vm.box = "bento/ubuntu-18.04"
   # config.vm.box = "dot_jira_project_configurator.box"
+  # config.vm.box = "dot_jira_13_project_configurator_full.box"
 
   config.vm.provision :ansible do |ansible|
     ansible.playbook = "play.yml"
