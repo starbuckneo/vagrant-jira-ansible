@@ -13,6 +13,29 @@
         - unzip
         - openssl
         - systemd
+        - python-pip
+        - python3
+        - python3-pip
+        - python3-dev
+        - postgresql
+        - postgresql-contrib
+        - postgresql-server-dev-10
+
+    - name: Install psycopg2
+      shell: |
+        pip install psycopg2
+      become: true
+
+    - name: Create a new database with name "jira"
+      community.general.postgresql_db:
+        name: jira
+      become_user: postgres
+
+    - name: Create appclient user password
+      community.general.postgresql_user:
+        name: jira
+        password: "jira"
+      become_user: postgres
 
     - name: Download jdk 8
       get_url:
@@ -55,27 +78,29 @@
 
     - name: Download jira
       get_url:
-        url: https://product-downloads.atlassian.com/software/jira/downloads/atlassian-jira-software-8.13.0.tar.gz
+        url: https://product-downloads.atlassian.com/software/jira/downloads/atlassian-jira-software-8.13.2.tar.gz
         dest: /home/vagrant
 
     - name: Install Jira
       shell: |
         mkdir /home/vagrant/jirasoftware
-        tar -xzf atlassian-jira-software-8.13.0.tar.gz -C /home/vagrant/jirasoftware
+        tar -xzf atlassian-jira-software-8.13.2.tar.gz -C /home/vagrant/jirasoftware
         cd /home/vagrant/jirasoftware
         chown -R vagrant /home/vagrant/jirasoftware
         chmod -R u=rwx,go-rwx /home/vagrant/jirasoftware
         mkdir /home/vagrant/jirasoftware-home
-        chown -R vagrant /home/vagrant/jirasoftware-home
+        mkdir /home/vagrant/jirasoftware-home/plugins
+        mkdir /home/vagrant/jirasoftware-home/plugins/installed-plugins
+        chown -R vagrant:vagrant /home/vagrant/jirasoftware-home
         chmod -R u=rwx,go-rwx /home/vagrant/jirasoftware-home
       args:
-        creates: "/home/vagrant/jirasoftware/atlassian-jira-software-8.13.0-standalone/bin/start-jira.sh"
+        creates: "/home/vagrant/jirasoftware/atlassian-jira-software-8.13.2-standalone/bin/start-jira.sh"
       become: true
 
     - name: Copy jira home to jira
       copy:
         src: "jira-application.properties"
-        dest: "/home/vagrant/jirasoftware/atlassian-jira-software-8.13.0-standalone/atlassian-jira/WEB-INF/classes"
+        dest: "/home/vagrant/jirasoftware/atlassian-jira-software-8.13.2-standalone/atlassian-jira/WEB-INF/classes"
       become: true
 
     - name: Copy jira service
@@ -84,8 +109,103 @@
         dest: "/etc/systemd/system/"
       become: true
 
+    - name: Download SSOOpenID Plugin
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/1217688"
+      tags: dot.jira
+      become: true
+
+    - name: ScriptRunner for Jira
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/6820"
+      tags: dot.jira
+      become: true
+
+    - name: Zephyr Scale
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/1213259"
+      tags: dot.jira
+      become: true
+
+    - name: Download Git Integration for Jira
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/4984"
+      tags: dot.jira
+      become: true
+
+    - name: GDPR and Security
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/1218962"
+      tags: dot.jira
+      become: true
+
+    - name: Easy Links for Jira
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/1216498"
+      tags: dot.jira
+      become: true
+
+    - name: Download Easy Agile Programs for Jira
+      shell: wget --content-disposition -P /home/vagrant/jirasoftware-home/plugins/installed-plugins/ "https://marketplace.atlassian.com/download/apps/1219491"
+      tags: dot.jira
+      become: true
+
+    #OBR STUFF
+
+    - name: Download OBR plugins and extract them (Advanced Roadmaps , Elements Copy & Sync ,  Configuration Manager)
+      shell: |
+        mkdir /tmp/plugins-obr
+        mkdir /tmp/plugins-obr/plugins-unziped
+        wget --content-disposition -P /tmp/plugins-obr/ "https://marketplace.atlassian.com/download/apps/1212136" 
+        wget --content-disposition -P /tmp/plugins-obr/ "https://marketplace.atlassian.com/download/apps/1211111"
+        wget --content-disposition -P /tmp/plugins-obr/ "https://marketplace.atlassian.com/download/apps/1211611"
+        wget --content-disposition -P /tmp/plugins-obr/ "https://marketplace.atlassian.com/download/apps/1220785"
+        cd /tmp/plugins-obr/plugins-unziped
+        unzip -o /tmp/plugins-obr/\*
+        mv /tmp/plugins-obr/plugins-unziped/*.jar /home/vagrant/jirasoftware-home/plugins/installed-plugins/
+        mv /tmp/plugins-obr/plugins-unziped/dependencies/*.jar /home/vagrant/jirasoftware-home/plugins/installed-plugins/
+        rm -R /tmp/plugins-obr
+      become: true
+
+    - name: Copy Anonymized Project View Plugin file
+      copy:
+        src: files/fak-issue-view-1.1.0.jar
+        dest: "/home/vagrant/jirasoftware-home/plugins/installed-plugins/fak-issue-view-1.1.0.jar"
+        mode: "0644"
+      become: true
+
+    - name: Download Anonymized Project View patch
+      shell: curl --fail -L  "https://polygran.atlassian.net/wiki/download/attachments/428900360/fak-patch-1.0.0-jira-8.13.2.zip" -o "/tmp/fak-patch-1.0.0-jira-8.13.2.zip"
+      tags: dot.jira
+      become: true
+
+    - name: Ensure patch directory exists
+      file:
+        path: /tmp/patch
+        state: directory
+      become: true
+      tags: dot.jira
+
+    - name: Unarchive a file that is already on the remote machine
+      unarchive:
+        src: /tmp/fak-patch-1.0.0-jira-8.13.2.zip
+        dest: /tmp/patch
+        remote_src: yes
+      become: true
+      tags: dot.jira
+
+    - name: Copy file with owner and permissions
+      shell: cp -R /tmp/patch/WEB-INF/ /home/vagrant/jirasoftware/atlassian-jira-software-8.13.2-standalone/atlassian-jira/
+      tags: dot.jira
+      become: true
+
+    - name: Copy dbconfig
+      copy:
+        src: files/dbconfig.xml
+        dest: "/home/vagrant/jirasoftware-home/dbconfig.xml"
+        mode: "0644"
+        owner: vagrant
+        group: root
+      become: true
+
     - name: Start Jira
       shell: |
+        chown -R vagrant:vagrant /home/vagrant/jirasoftware-home
+        chmod -R u=rwx,go-rwx /home/vagrant/jirasoftware-home
         sudo systemctl enable jira
         sudo systemctl start jira
       become: true
